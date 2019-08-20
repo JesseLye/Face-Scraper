@@ -25,6 +25,7 @@ Once all packages have been installed successfully Face-Scraper is ready to be u
 
 <!-- [START usage] -->
 ## Usage
+Prior to launching, you will require a clear image of the person's face you're attempting to scrape. The image must be titled "seed.jpg" and placed within the face-scraper directory. The "seed.jpg" file must only contain the person you're attempting to scrape and preferably it is to be of a high resolution.
 
 In terminal, you're able to use Face-Scraper with the following command:
 ```bash
