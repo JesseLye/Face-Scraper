@@ -21,7 +21,7 @@ async function initSetup(page) {
 async function downloadImage(url, path, callback = () => null) {
     let proceed = true;
     const res = await fetch(url)
-                        .catch(() => { callback(); proceed = false; return null; });
+        .catch(() => { callback(); proceed = false; return null; });
     if (proceed) {
         const fileStream = fs.createWriteStream(path);
         await new Promise((resolve, reject) => {
@@ -41,7 +41,7 @@ async function checkSeedFile() {
         if (err) {
             if (process.argv[2]) {
                 throw "seed.jpg is missing";
-            }  else {
+            } else {
                 downloadImage("https://i.imgur.com/t7qjNfg.jpg", "seed.jpg", () => { console.log("Failed to Download Default Seed Image") });
             }
         }
@@ -83,10 +83,13 @@ async function loopImages(page, arrPos, imageCounter, fileCounter) {
                 let wasSuccessful = true;
                 await downloadImage(imageUrl, `candidate.${fileName}`, () => { wasSuccesful = false });
                 // check filesize
-                var stats = fs.statSync(`candidate.${fileName}`);
-                var fileSizeInBytes = stats["size"];
-                if (fileSizeInBytes < 0) {
-                    wasSuccessful = false;
+                let hasFile = fs.existsSync(`candidate.${fileName}`);
+                if (hasFile) {
+                    var stats = fs.statSync(`candidate.${fileName}`);
+                    var fileSizeInBytes = stats["size"];
+                    if (fileSizeInBytes < 0) wasSuccessful = false;
+                } else {
+                    wasSuccssful = false;
                 }
                 if (wasSuccessful) {
                     var facialRecognition = execSync(`python3 app.py ${fileName} ${args.numFaces}`).toString("utf8");
@@ -98,7 +101,7 @@ async function loopImages(page, arrPos, imageCounter, fileCounter) {
                         });
                         fileCounter++;
                     }
-                } 
+                }
             }
         }
         imageCounter++;
@@ -108,17 +111,17 @@ async function loopImages(page, arrPos, imageCounter, fileCounter) {
         }
     }
     await page.$("input[data-lt='Loading']")
-                .then(async () => {
-                    await page.click("input[data-lt='Loading']");
-                    await page.waitForSelector(`div[data-ri='${imageCounter}']`);
-                    await loopImages(page, arrPos, imageCounter, fileCounter);
-                })
-                .catch(() => null);
+        .then(async () => {
+            await page.click("input[data-lt='Loading']");
+            await page.waitForSelector(`div[data-ri='${imageCounter}']`);
+            await loopImages(page, arrPos, imageCounter, fileCounter);
+        })
+        .catch(() => null);
 }
 
 (async () => {
     await checkSeedFile();
-    const browser = await puppeteer.launch({headless: false});
+    const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
     var imageCounter = 0;
     var fileCounter = 1;
