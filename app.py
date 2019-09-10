@@ -24,7 +24,6 @@ if file_type == "png":
         os.remove("candidate.png")
     else:
         print("false")
-        sys.stdout.flush()
         sys.exit()
 
 seed_location = 'seed.jpg'
@@ -38,7 +37,6 @@ if check_candidate == True:
 
     if number_of_faces > num_faces:
         print("false")
-        sys.stdout.flush()
     else:
         seed_image = face_recognition.load_image_file(seed_location)
         seed_image_encoding = face_recognition.face_encodings(seed_image)[0]
@@ -49,14 +47,10 @@ if check_candidate == True:
 
             if results[0]:
                 print("true")
-                sys.stdout.flush()
             else:
                 print("false")
-                sys.stdout.flush()
 
         else:
             print("false")
-            sys.stdout.flush()
 else:
     print("false")
-    sys.stdout.flush()
