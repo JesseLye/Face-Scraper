@@ -2,6 +2,8 @@ import sys
 import face_recognition
 import os
 from PIL import Image
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def check_image_with_pil(path):
     try:
