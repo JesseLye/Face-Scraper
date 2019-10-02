@@ -56,78 +56,63 @@ function getFileName(str) {
     return newStr;
 }
 
-async function loopImages(page, arrPos, imageCounter, fileCounter) {
-    var arrLength = await page.$$eval("#search #rg_s div[data-ri]", el => el.length);
-    var incrementValue = 10;
-    while (arrLength !== imageCounter) {
-        // Skips over the related searches box
-        var isInfoBox = await page.evaluate((imgCounter) => {
-            let getInfoBox = document.querySelector(`div[data-ri='${imgCounter}'] div.vhWGrd`);
-            return Promise.resolve(!!getInfoBox);
-        }, imageCounter);
-        if (!isInfoBox) {
-            await page.waitForSelector(`div[data-ri='${imageCounter}']`);
-            await page.click(`div[data-ri='${imageCounter}']`);
-            if (arrPos > 1) {
-                arrPos = 0;
+async function loopImages(page, fileCounter, startingPosition = 0, newMetaData = false) {
+    const metaData = !newMetaData ? await page.evaluate(() => [...document.querySelectorAll('div.rg_meta')].map(e => JSON.parse(e.innerText))) : newMetaData;
+    for (let i = startingPosition; i < metaData.length; i++) {
+        console.log(`Checking Image: ${i}`);
+        var fileName = getFileName(metaData[i].ou);
+        if (fileName === "jpg" || fileName === "png") {
+            let wasSuccessful = true;
+            await downloadImage(metaData[i].ou, `candidate.${fileName}`, () => { wasSuccesful = false });
+            // check filesize
+            let hasFile = fs.existsSync(`candidate.${fileName}`);
+            if (hasFile) {
+                var stats = fs.statSync(`candidate.${fileName}`);
+                var fileSizeInBytes = stats["size"];
+                if (fileSizeInBytes < 0) wasSuccessful = false;
             } else {
-                arrPos++;
+                wasSuccssful = false;
             }
-            await page.waitFor(1000);
-            let imageUrl = await page.evaluate((x) => {
-                let imageArr = document.querySelectorAll("div.irc_mic img.irc_mi");
-                return Promise.resolve(imageArr[x].src);
-            }, arrPos);
-            var fileName = getFileName(imageUrl);
-            if (fileName === "jpg" || fileName === "png") {
-                let wasSuccessful = true;
-                await downloadImage(imageUrl, `candidate.${fileName}`, () => { wasSuccesful = false });
-                // check filesize
-                let hasFile = fs.existsSync(`candidate.${fileName}`);
-                if (hasFile) {
-                    var stats = fs.statSync(`candidate.${fileName}`);
-                    var fileSizeInBytes = stats["size"];
-                    if (fileSizeInBytes < 0) wasSuccessful = false;
-                } else {
-                    wasSuccssful = false;
-                }
-                if (wasSuccessful) {
-                    var facialRecognition = execSync(`python3 app.py ${fileName} ${args.numFaces}`).toString("utf8");
-                    facialRecognition = facialRecognition.substring(0, facialRecognition.length - 1);
-                    if (facialRecognition == "true") {
-                        // Python converts .png files into jpgs
-                        await fs.rename(`candidate.jpg`, `image_${fileCounter}.jpg`, (err) => {
-                            if (err) throw err;
-                        });
-                        fileCounter++;
-                    }
+            if (wasSuccessful) {
+                var facialRecognition = execSync(`python3 app.py ${fileName} ${args.numFaces}`).toString("utf8");
+                facialRecognition = facialRecognition.substring(0, facialRecognition.length - 1);
+                if (facialRecognition == "true") {
+                    // Python converts .png files into jpgs
+                    await fs.rename(`candidate.jpg`, `image_${fileCounter}.jpg`, (err) => {
+                        if (err) throw err;
+                    });
+                    fileCounter++;
+                    console.log(`image_${fileCounter}.jpg saved`);
                 }
             }
-        }
-        imageCounter++;
-        if (imageCounter > incrementValue) {
-            arrLength = await page.$$eval("#search #rg_s div[data-ri]", el => el.length);
-            incrementValue = arrLength - 10;
         }
     }
-    await page.$("input[data-lt='Loading']")
-        .then(async () => {
-            await page.click("input[data-lt='Loading']");
-            await page.waitForSelector(`div[data-ri='${imageCounter}']`);
-            await loopImages(page, arrPos, imageCounter, fileCounter);
-        })
-        .catch(() => null);
+    await page.evaluate('window.scrollTo(0,document.body.scrollHeight)');
+    const checkMetaData = await page.evaluate(
+        () => [...document.querySelectorAll('div.rg_meta')].map(e => JSON.parse(e.innerText))
+    );
+    if (metaData.length !== checkMetaData.length) {
+        console.log("Another round of images loaded");
+        await loopImages(page, fileCounter, metaData.length, checkMetaData);
+    } else {
+        await page.$("input[data-lt='Loading']")
+            .then(async () => {
+                await page.click("input[data-lt='Loading']");
+                await page.waitForSelector(`div[data-ri='${checkMetaData.length + 2}']`);
+                await loopImages(page, fileCounter, metaData.length, checkMetaData);
+            })
+            .catch(() => null);
+    }
 }
 
 (async () => {
     await checkSeedFile();
-    const browser = await puppeteer.launch({ headless: false });
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
-    var imageCounter = 0;
     var fileCounter = 1;
-    var arrPos = 0;
     await initSetup(page);
-    await loopImages(page, arrPos, imageCounter, fileCounter);
-    console.log("Scraping complete.");
+    console.log("Running scrapper");
+    await loopImages(page, fileCounter);
+    console.log("Scraping complete");
     await browser.close();
 })();
