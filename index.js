@@ -56,6 +56,28 @@ function getFileName(str) {
     return newStr;
 }
 
+function executeScript(fileName, recurse = true) {
+    try {
+        var facialRecognition = execSync(`python3 app.py ${fileName} ${args.numFaces}`, {
+            timeout: 15000,
+        });
+        facialRecognition = facialRecognition.toString("utf8").substring(0, facialRecognition.length - 1);
+        if (facialRecognition == "true") {
+            return true;
+        } else {
+            return false;
+        }
+    } catch (err) {
+        if (recurse) {
+            // possible timeout error, run the script one more time
+            return executeScript(fileName, false);
+        } else {
+            console.log(err);
+            return false;
+        }
+    }
+}
+
 async function loopImages(page, fileCounter, startingPosition = 0, newMetaData = false) {
     const metaData = !newMetaData ? await page.evaluate(() => [...document.querySelectorAll('div.rg_meta')].map(e => JSON.parse(e.innerText))) : newMetaData;
     for (let i = startingPosition; i < metaData.length; i++) {
@@ -74,9 +96,8 @@ async function loopImages(page, fileCounter, startingPosition = 0, newMetaData =
                 wasSuccssful = false;
             }
             if (wasSuccessful) {
-                var facialRecognition = execSync(`python3 app.py ${fileName} ${args.numFaces}`).toString("utf8");
-                facialRecognition = facialRecognition.substring(0, facialRecognition.length - 1);
-                if (facialRecognition == "true") {
+                var ranSuccessfully = executeScript(fileName);
+                if (ranSuccessfully) {
                     // Python converts .png files into jpgs
                     await fs.rename(`candidate.jpg`, `image_${fileCounter}.jpg`, (err) => {
                         if (err) throw err;
