@@ -132,7 +132,7 @@ async function loopImages(page, fileCounter, startingPosition = 0, newMetaData =
     const page = await browser.newPage();
     var fileCounter = 1;
     await initSetup(page);
-    console.log("Running scrapper");
+    console.log("Running scraper");
     await loopImages(page, fileCounter);
     console.log("Scraping complete");
     await browser.close();
